@@ -1,0 +1,1489 @@
+Configuration File
+
+* General Notes
+
+- Add flyspell word as temporary correct for editing session or buffer by a or A respectively.
+
+* Quelpa
+Normal quelpa. Don't update melpa if internet is down.
+
+#+BEGIN_SRC emacs-lisp
+(use-package quelpa-use-package :ensure t)
+(setq quelpa-update-melpa-p (internet-up-p))
+#+END_SRC
+
+* My Utils
+
+  
+#+BEGIN_SRC emacs-lisp
+
+(defmacro my-with-patch-function (fun-name fun-args fun-body &rest body)
+  "Temporarily override the definition of FUN-NAME whilst BODY is executed.
+Assumes FUNCTION is already defined (see http://emacs.stackexchange.com/a/3452/304)."
+  (let ((orig-fn-tmp-symbol-name (make-symbol "tmp-symbol-name")))
+    `(let ((,orig-fn-tmp-symbol-name (symbol-function ,fun-name)))
+       (flet ((,(intern (concat (symbol-name (car (last fun-name))) "-old")) (&rest args) (apply 'funcall ,orig-fn-tmp-symbol-name args)))
+         (cl-letf (((symbol-function ,fun-name) (lambda ,fun-args ,fun-body)))
+         ,@body)))))
+
+
+#+END_SRC
+
+
+* Disable Garbage Collection when minibuffer is showing.
+Speeds up searches and whantot.
+#+BEGIN_SRC emacs-lisp
+(defun my-minibuffer-setup-hook ()
+  (setq gc-cons-threshold most-positive-fixnum))
+
+(defun my-minibuffer-exit-hook ()
+  (setq gc-cons-threshold 800000))
+
+(add-hook 'minibuffer-setup-hook #'my-minibuffer-setup-hook)
+(add-hook 'minibuffer-exit-hook #'my-minibuffer-exit-hook)
+#+END_SRC
+
+
+* Key Chord - Allow use of multiple keys or successive keys for bindings
+
+#+BEGIN_SRC emacs-lisp
+;;various modes below require this. must have.
+(use-package key-chord
+    :ensure t
+    :config 
+    (progn 
+        (key-chord-mode 1)))
+#+END_SRC
+
+* Evil - VIM keybindings
+#+BEGIN_SRC emacs-lisp
+
+(use-package evil
+  :ensure t
+  :init
+  (progn
+    ;; if we don't have this evil overwrites the cursor color
+    (setq evil-default-cursor t)
+
+
+    ;tab mode for evil modg
+    (use-package evil-tabs
+      :ensure t
+      :init (progn (global-evil-tabs-mode t)
+		   ;;make switch tabs to work in motion state
+		   (evil-global-set-key 'motion  "gt" 'elscreen-next)))
+      
+
+    ;; leader shortcuts
+    ; This has to be before we invoke evil-mode due to:
+    ; https://github.com/cofi/evil-leader/issues/10
+    (use-package evil-leader
+      :ensure t
+      :init (global-evil-leader-mode)
+      :config
+
+
+      
+
+      (progn
+	(evil-leader/set-leader "-")
+        (setq evil-leader/in-all-states t)
+        ;; keyboard shortcuts
+        (evil-leader/set-key
+          "k" 'kill-window
+          "w" 'save-buffer 
+	  "-" 'evil-ex
+	  "0" 'eval-region
+	  "o" 'eval-buffer
+	  "nt" (lambda () (interactive) (multi-term))
+	  "y" 'linenumber-name-file-number-lines-and-copy-to-kill-buffer
+          "b" 'buffer-menu
+          ))
+      )
+
+    ;;; boot evil by default
+  :config
+  (progn
+
+   ; (define-key evil-ex-map "e " 'ido-find-file)
+   ; (define-key evil-ex-map "b " 'ido-switch-buffer)
+
+    (define-key evil-normal-state-map  (kbd "S-<left>") 'paraedit-background-slurp-sexp)
+    (define-key evil-normal-state-map  (kbd "M-<right>") 'paredit-forward-slurp-sexp)
+    (define-key evil-motion-state-map  (kbd "<up>") 'evil-window-up)
+    (define-key evil-motion-state-map  (kbd "<right>") 'evil-window-right)
+    (define-key evil-motion-state-map  (kbd "<left>") 'evil-window-left)
+    (define-key evil-motion-state-map  (kbd "<down>") 'evil-window-down)
+
+
+    ;whenver changing windows, resize the window with golden ratio
+    (advice-add 'evil-window-left :after 'golden-ratio)
+    (advice-add 'evil-window-right :after 'golden-ratio)
+    (advice-add 'evil-window-up :after 'golden-ratio)
+    (advice-add 'evil-window-down :after 'golden-ratio)
+
+
+
+    
+    ;enable caching for projectile file listing
+    (setq projectile-enable-caching t)
+
+    ;; jj escapes to normal mode
+    (key-chord-define evil-insert-state-map  "jk" 'evil-normal-state)
+
+    (key-chord-define evil-insert-state-map  "jf" 'paredit-open-round)
+
+    (key-chord-define evil-normal-state-map  "=w" 'paredit-wrap-round)
+    (key-chord-define evil-normal-state-map  "=s" 'paredit-splice-sexp-killing-backward)
+
+    (key-chord-define evil-normal-state-map  "==" 'cider-test-run-ns-tests)
+
+
+    (setq
+     ;; h/l wrap around to next lines
+     evil-cross-lines t
+     ;; Training wheels: start evil-mode in emacs mode
+     ;evil-default-state 'normal
+     evil-shift-width 2
+    )
+    
+    ;; unbind enter key
+    (define-key evil-motion-state-map [?\r] nil)
+
+    ;; esc should always quit: http://stackoverflow.com/a/10166400/61435
+    (define-key evil-normal-state-map [escape] 'keyboard-quit)
+    (define-key evil-visual-state-map [escape] 'keyboard-quit)
+    (define-key minibuffer-local-map [escape] 'abort-recursive-edit)
+    (define-key minibuffer-local-ns-map [escape] 'abort-recursive-edit)
+    (define-key minibuffer-local-completion-map [escape] 'abort-recursive-edit)
+    (define-key minibuffer-local-must-match-map [escape] 'abort-recursive-edit)
+    (define-key minibuffer-local-isearch-map [escape] 'abort-recursive-edit)
+
+    ;; modes to map to different default states
+    ;(dolist (mode-map '((comint-mode . emacs)
+    ;                    (term-mode . emacs)
+    ;                    (eshell-mode . emacs)
+    ;                    (fundamental-mode . emacs)))
+    ;  (evil-set-initial-state `,(car mode-map) `,(cdr mode-map)))
+
+    ;; tab shouldn't jump forward
+    (setq evil-want-C-i-jump nil)
+
+
+    ;tab in normal mode should cyle org mode entries
+    (evil-define-key 'normal org-mode-map (kbd "TAB") 'org-cycle)
+
+    ;case insitive search
+    (setq evil-ex-search-case 'smart)
+    
+    (evil-mode 1)
+
+  )))
+
+#+END_SRC
+   
+* Magit - Git Integration
+
+** Package Download
+#+BEGIN_SRC emacs-lisp
+  
+(use-package magit
+  :ensure t
+  :config (progn (use-package evil-magit :ensure t)))
+  
+#+END_SRC
+  
+** Key Bindings
+#+BEGIN_SRC emacs-lisp
+(evil-leader/set-key
+    "m" 'magit-status
+)
+#+END_SRC   
+* paredit  
+#+BEGIN_SRC emacs-lisp
+(use-package paredit :ensure t)
+#+END_SRC
+
+* Golden Ratio - Auto Resize Windows. Current window w/ cursor is largest.
+#+BEGIN_SRC emacs-lisp
+(use-package golden-ratio
+  :ensure t
+  :init (golden-ratio-mode 1))
+
+#+END_SRC
+
+* HELM, AG, Projectile - Fuzzy auto compliation, file search
+#+BEGIN_SRC emacs-lisp
+(use-package helm :ensure t)
+(use-package helm-ag :ensure t)
+(use-package helm-projectile
+  :ensure t
+  :init (projectile-mode)
+  :config (setq shell-file-name "/bin/sh"))
+#+END_SRC
+
+* Neo Tree - Tree File View
+#+BEGIN_SRC emacs-lisp
+(use-package neotree
+  :ensure t
+  :config (define-key evil-motion-state-map (kbd "\\") 'neotree-toggle))
+  
+;; Ensure neotree is expanded
+(setq neo-window-fixed-size nil)
+#+END_SRC
+
+* Multi Term - Terminal In Editor
+#+BEGIN_SRC emacs-lisp
+
+(use-package multi-term :ensure t
+  :config (evil-define-key 'normal term-raw-map "p" 'term-paste))
+#+END_SRC
+* Company - Auto Complition 
+#+BEGIN_SRC emacs-lisp
+(use-package company
+    :ensure t 
+    :bind (("C-c /". company-complete))
+    :config
+    (progn
+      (global-company-mode)
+      (setq company-idle-delay 0.2)))
+
+(use-package company-flx
+    :ensure t
+    :config
+    (company-flx-mode +1))
+#+END_SRC
+
+* Cider - Clojure nrepl integration
+** init  
+#+BEGIN_SRC emacs-lisp
+
+;;Cider begin (Clojure)
+(use-package cider
+  :ensure t
+  :commands (cider cider-connect cider-jack-in)
+  :init
+  (setq cider-auto-select-error-buffer t
+        cider-repl-pop-to-buffer-on-connect nil
+        cider-repl-use-clojure-font-lock t
+        cider-repl-wrap-history t
+        cider-repl-history-size 1000
+        ;cider-repl-history-file (f-expand ".cider-history"
+        ;                                  user-emacs-directory)
+        cider-show-error-buffer t
+        nrepl-hide-special-buffers t
+        nrepl-popup-stacktraces nil)
+  (add-hook 'cider-repl-mode-hook 'rainbow-delimiters-mode)
+  (add-hook 'cider-repl-mode-hook 'subword-mode)
+  (add-hook 'cider-test-report-mode 'jcf-soft-wrap)
+  ;; nrepl isn't based on comint
+  (add-hook 'cider-repl-mode-hook
+            (lambda () (setq show-trailing-whitespace nil)))
+
+  
+)
+;;Cider end (Cloure)
+
+
+#+END_SRC
+** key bindings
+#+BEGIN_SRC emacs-lisp
+(evil-leader/set-key
+    "=" (lambda () (interactive) (save-buffer) (cider-eval-buffer))
+    "eb" (lambda () (interactive) (save-buffer) (cider-eval-buffer))
+    "er" (lambda () (interactive) (save-buffer) (cider-eval-defun-at-point)))
+
+#+END_SRC
+* Rainbow Delimiters
+#+BEGIN_SRC emacs-lisp
+
+(use-package rainbow-delimiters
+  :ensure t
+  :init
+  (progn
+    (add-hook 'prog-mode-hook 'rainbow-delimiters-mode)))
+#+END_SRC
+* ag - File search
+** Code
+
+#+BEGIN_SRC emacs-lisp
+
+(use-package ag
+  :ensure t
+  :config
+  )
+
+#+END_SRC
+   
+** Evil Integration - Custom Commands
+
+:ag searches for all files
+:agp searches for code in python files only
+
+#+BEGIN_SRC emacs-lisp
+;; :ag <term to search for>
+;; projectile has ag, but it's version tries
+;; to modify files. creates a simple wrapper around
+;; ag.
+
+
+(defun my-ag-regex-always (string directory)
+  "Search using ag in a given DIRECTORY for a given literal search STRING,
+with STRING defaulting to the symbol under point.
+If called with a prefix, prompts for flags to pass to ag.
+Always assumes regex is given.
+Display buffer at bottom of the current."
+  (interactive (list (ag/read-from-minibuffer "Search string")
+                     (read-directory-name "Directory: ")))
+    (let ((ag-ignore-list (append ag-ignore-list jt-ag-ignore-list))
+          (ag-reuse-buffers t))
+	 (ag/search string directory :regexp t))
+
+  (select-window (get-buffer-window "*ag search*")))
+
+(evil-define-command my-ag (arg) 
+    "Perform search in projectile root directory.
+     If root not found, display error."
+    (interactive "<a>")
+    (setq ag-arguments (list "--smart-case" "--stats"))
+    (if-let ((root-dir (projectile-project-root)))
+            (my-ag-regex-always arg (projectile-project-root))
+            (error "Projectile root not found")))
+(evil-ex-define-cmd "ag" 'my-ag)
+
+;;ag, but for python files only
+(evil-define-command my-agp (arg) 
+    (interactive "<a>")
+    (setq ag-arguments (list "--smart-case" "--stats" "--python"))
+    (my-ag-regex-always arg (projectile-project-root)))
+(evil-ex-define-cmd "agp" 'my-agp)
+
+(defun maybe-split-then-find-file () 
+    "Open find file windows. If key is pressed within 0.2 seconds after fn call,
+    split window before doing so."
+    (interactive)
+    (if (read-event nil nil 0.2)
+	(evil-window-split))
+	(helm-projectile-find-file))
+
+
+;;shift-return opens results into new window
+(defun my-split-and-display (buf not-this-window)
+(let ((new-window (split-window-vertically)))
+    (set-window-buffer new-window buf)
+    new-window))
+
+(defun my-ag-split-and-display ()
+    (interactive)
+    (let ((display-buffer-function 'my-split-and-display))
+    (compile-goto-error)))
+
+#+END_SRC
+
+#+RESULTS:
+: my-ag-split-and-display
+  
+** Custom Key Bindings
+   
+Shift-return opens new window
+[] next error
+{} next file
+
+#+BEGIN_SRC emacs-lisp
+
+(evil-define-key 'motion ag-mode-map (kbd "S-<return>") 'my-ag-split-and-display)
+
+(define-key ag-mode-map " " nil)
+
+
+(defun evil-collection-ag-setup ()
+  "Set up `evil' bindings for `ag'."
+  (evil-define-key '(motion) ag-mode-map
+    "k" 'evil-previous-line
+    "h" 'evil-backward-char
+
+    ;; refresh
+    "gr" 'recompile
+
+    ;; navigation
+
+    "gg" 'evil-goto-first-line
+    (kbd "G") 'evil-goto-line
+    "gj" 'compilation-next-error
+    "gk" 'compilation-previous-error
+    (kbd "C-j") 'compilation-next-error
+    (kbd "C-k") 'compilation-previous-error
+    "]" 'compilation-next-error
+    "[" 'compilation-previous-error
+
+    "}" 'compilation-next-file
+    "{" 'compilation-previous-file
+    "n" 'evil-search-next
+    (kbd "<DEL>") 'maybe-split-then-find-file
+
+    )
+
+
+  ;; `ag' is best set in 'normal state because its buffer can be edited.
+  ;; https://github.com/mhayashi1120/Emacs-wgrep
+  (evil-set-initial-state 'ag-mode 'motion))
+  (evil-collection-ag-setup)
+
+#+END_SRC
+
+* Markdown 
+Requires markdown procesor: brew install markdown.
+Enables visual word wrapping.
+Disable fringes.
+
+#+BEGIN_SRC emacs-lisp
+(use-package markdown-mode :ensure t)
+
+(add-to-list 'auto-mode-alist '("\\.md\\'" . markdown-mode))
+
+(setq markdown-command "pandoc")
+
+(add-hook 'markdown-mode-hook 'visual-line-mode)
+(add-hook 'markdown-mode-hook (lambda () 
+  (setq word-wrap t)
+  (set-window-fringes (selected-window) 0 0)))
+
+  (evil-define-key 'normal markdown-mode-map (kbd "TAB") 'markdown-cycle)
+
+#+END_SRC
+
+* My Custom Key - Custom sequence key bindings
+ 
+** Init Code
+#+BEGIN_SRC emacs-lisp
+
+    (defvar my-key-sequence-hash (make-hash-table :test 'equal))
+    (defun my-key-sequence-normalize-keys (key-list)
+      (string-join (mapcar (lambda (x) (cond ((numberp x) (char-to-string x))
+					     ((symbolp x) (downcase (symbol-name x)))
+					     ((stringp x) (downcase x))
+					     (t x)))
+			   key-list)
+		   "-"))
+
+    (defun my-key-sequence-define-sequence (key-list fn)
+      (puthash (my-key-sequence-normalize-keys key-list) fn my-key-sequence-hash))
+
+
+
+    (defun my-key-sequence-run-binding ()
+      "keeps reading keystrokes until delay (0.2) seconds is reached between key. Tags for search: timeout time"
+      (interactive)
+
+      (let ((read-keys '()))
+
+	;; keep reading keys until we hit null
+	(while (progn (push (read-event nil nil 0.2) read-keys)
+		      (first read-keys)
+		      ))
+	(pop read-keys)
+
+
+	(setq read-keys (mapcar (lambda (x) (key-description (list x) nil)) (reverse read-keys)))
+
+	;; find matching sequence and run fun
+	(let ((found-fn (gethash (my-key-sequence-normalize-keys read-keys) my-key-sequence-hash)))
+	  (if found-fn
+	      (funcall found-fn)))
+
+	))
+
+
+
+    ;key combos starting with the spacebar. 
+    (evil-global-set-key 'motion " " 'my-key-sequence-run-binding)
+
+    (defun toggle-notes-buffer ()
+      (interactive)
+      "Toggle notes buffer"
+      (if (boundp 'my-buffer-is-notes) 
+	  (previous-buffer)
+	(let ((file (locate-dominating-file (or (buffer-file-name) default-directory) "notes.org")))
+	  (if file
+	      (progn 
+	        (find-file (concat file "notes.org"))
+		(make-local-variable 'my-buffer-is-notes)
+		(setq my-buffer-is-notes t))
+	      (message "Could not find notes.org in parent directory.")))))
+         
+                
+#+END_SRC
+
+* langtool2
+<leader>lc - check buffer for spelling errors
+#+BEGIN_SRC emacs-lisp
+
+
+(use-package jt-langtool :quelpa (jt-langtool :fetcher github :repo "justintaft/jt-emacs-langtool" :branch "httpserver" ))
+
+
+(when (file-exists-p "/usr/local/bin/languagetool-server")
+  (setq langtool-bin "/usr/local/bin/languagetool-server"))
+
+(when (file-exists-p "~/.local/LanguageTool/")
+  (setq langtool-language-tool-commandline-jar "~/.local/LanguageTool/languagetool-commandline.jar")
+  (setq langtool-language-tool-jar "~/.local/LanguageTool/languagetool.jar"))
+
+(setq langtool-enabled-rules '("And"))
+(setq langtool-disabled-rules '("WHITESPACE_RULE" "EN_QUOTES" "MORFOLOGIK_RULE_EN_GB" "COMMA_PARENTHESIS_WHITESPACE" "EN_GB_SIMPLE_REPLACE"))
+(evil-leader/set-key "lc" 'langtool-check)
+(define-key evil-normal-state-map "  " (lambda () (interactive) (save-excursion (mark-paragraph) (langtool-check))))
+(define-key evil-normal-state-map " s" (lambda () (interactive) (flyspell-buffer) (langtool-check)))
+#+END_SRC
+* Zoom in all buffers
+META--: zoom out
+META-=: zoom in
+#+BEGIN_SRC emacs-lisp
+
+(define-globalized-minor-mode 
+global-text-scale-mode
+text-scale-mode
+(lambda () (text-scale-mode 1)))
+
+(defun global-text-scale-adjust (inc) (interactive)
+(text-scale-set 1)
+(kill-local-variable 'text-scale-mode-amount)
+(setq-default text-scale-mode-amount (+ text-scale-mode-amount inc))
+(global-text-scale-mode 1)
+)
+
+  (global-set-key (kbd "M-0")
+                  '(lambda () (interactive)
+                     (global-text-scale-adjust (- text-scale-mode-amount))
+                     (global-text-scale-mode -1)))
+  (global-set-key (kbd "M-=")
+                  '(lambda () (interactive) (global-text-scale-adjust 1)))
+  (global-set-key (kbd "M--")
+                  '(lambda () (interactive) (global-text-scale-adjust -1)))
+  
+#+END_SRC
+* Custom Org Config
+- leader-r : recalculate table
+<el - create emacs lisp block
+<py - create python async lisp block
+Don't split headers into multiple lines
+<leader>ci - clock in
+<leader>co - clock out
+- table in normal mode cycles outline
+- clock: show hours and minutes 
+** key bindings
+#+BEGIN_SRC emacs-lisp
+ ;(evil-leader/set-key-for-mode 'org-mode
+ ; "r" 'org-table-iterate)
+
+ (evil-leader/set-key-for-mode 'org-mode
+    "ci" 'org-clock-in)
+
+ (evil-leader/set-key-for-mode 'org-mode
+    "co" (lambda () (interactive) (org-clock-out) (org-clock-display)))
+
+(defun jt/org-cycle-current-headline ()
+  (interactive)
+  (outline-previous-heading)
+  (org-cycle))
+
+;(evil-define-key '(normal visual) org-mode-map
+;    (kbd "<tab>") 'jt/org-cycle-current-headline)
+;
+;(evil-define-key '(normal visual) org-mode-map
+;    (kbd "<tab>") 'org-cycle)
+
+
+(defun jt/org-cycle-always ()
+  (interactive) 
+  (let ((org-cycle-emulate-tab nil))
+     (org-cycle)))
+(evil-define-key '(normal visual) org-mode-map (kbd "<tab>") 'jt/org-cycle-always) 
+
+
+    
+#+END_SRC
+
+** Language support
+Use python3 as default
+Add GO support
+#+BEGIN_SRC emacs-lisp
+
+(setenv "NODE_PATH"
+  (concat
+   "/usr/local/lib/node_modules" ":"
+   (getenv "NODE_PATH")
+  )
+)
+
+(use-package ob-go :ensure t)
+
+;Allow languages to be run in notes 
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((shell . t)
+   (java . t)
+   (C . t)
+   (js . t)
+   (python . t)
+   (go . t)))
+
+(setq org-babel-python-command "python3")
+
+
+;;All languages in org mode is safe
+(defun my-org-confirm-babel-evaluate (lang body) nil)
+(setq org-confirm-babel-evaluate 'my-org-confirm-babel-evaluate)
+
+(add-to-list 'org-structure-template-alist
+             '("py" "#+BEGIN_SRC python :results output :async\n?\n#+END_SRC"))
+
+(add-to-list 'org-structure-template-alist
+             '("js" "#+BEGIN_SRC js :results output :async\n?\n#+END_SRC"))
+	     
+(add-to-list 'org-structure-template-alist
+	      '("el" "#+BEGIN_SRC emacs-lisp\n?\n#+END_SRC"))
+
+#+END_SRC
+
+** Other
+Enable line wrapping when using org-mode.
+Enable org-mode on .org file opening
+#+BEGIN_SRC emacs-lisp
+  (add-hook 'org-mode-hook 'visual-line-mode)
+  (add-to-list 'auto-mode-alist '("\\.org\\'" . org-mode))
+  (setq org-M-RET-may-split-line nil)
+  (setq org-duration-format 'h:mm)
+
+#+end_src
+* Wcheck - a better on-the-fly spell checker
+Only performs spellcheck for what's visible in the current buffer
+#+BEGIN_SRC emacs-lisp
+(use-package wcheck-mode :ensure t)
+
+(setq wcheck-language-data 
+'(("English"
+ (program . "/usr/local/bin/ispell")
+ (args "-a" "-l")
+ (action-program . "/usr/local/bin/ispell")
+ (action-args "-a" "-l")
+ (action-parser . wcheck-parser-ispell-suggestions)
+ (read-or-skip-faces
+  (org-mode skip font-lock-comment-face org-link))
+
+)))
+
+#+END_SRC
+
+* ert-async - Async emacs testing
+#+BEGIN_SRC emacs-lisp
+(use-package ert-async :ensure t)
+
+#+END_SRC
+
+* async org src block
+- add :async to #+BEGIN_SRC line to have it execute async 
+
+#+BEGIN_SRC emacs-lisp
+(use-package ob-async :ensure t)
+#+END_SRC  
+
+* TRAMP
+#+BEGIN_SRC emacs-lisp
+(use-package tramp :ensure t)
+#+END_SRC
+
+* Enable narrowing
+Show only part of a buffer.
+- c-x n n and c-x w w
+#+BEGIN_SRC emacs-lisp
+(put 'narrow-to-region 'disabled nil)
+#+END_SRC
+* Custom Bindings
+-nf: new frame
+spc n - toggle notes buffer
+spc f - run ag
+-ec: edit emacs config.org 
+
+- <DEL> - maybe-split-then-find-file
+- S-return in find file - split and display
+
+#+BEGIN_SRC emacs-lisp
+
+
+(define-key evil-normal-state-map " n" 'toggle-notes-buffer)
+(define-key evil-normal-state-map " f" (lambda () (interactive) (my-ag (read-string (format "Search val (default %s): " (symbol-at-point)) nil nil (symbol-name (symbol-at-point))))))
+
+;(my-key-sequence-define-sequence (kbd "n") 'toggle-notes-buffer)
+;(my-key-sequence-define-sequence (kbd "f") (lambda () (my-ag (read-string (format "Search val (default %s): " (symbol-at-point)) nil nil (symbol-name (symbol-at-point))))))
+
+(evil-leader/set-key "nf" 'make-frame-command)
+
+(evil-leader/set-key "ec" (lambda () (interactive) (split-window-below) (find-file "~/.emacs.d/config.org")))
+
+(define-key evil-normal-state-map (kbd "<DEL>") 'maybe-split-then-find-file)
+(evil-define-key 'motion Buffer-mode-map (kbd "S-<return>") 'my-buffer-split-and-display)
+
+
+#+END_SRC
+
+* Auto mode 
+Based on file name, automatically enable a mode.
+#+BEGIN_SRC emacs-elisp
+(add-to-list 'auto-mode-alist '("\\.py\\'" . python-mode))
+(add-to-list 'auto-mode-alist '("\\.java\\'" . java-mode))
+(add-to-list 'auto-mode-alist '("\\.el\\'" . lisp-mode))
+#+END_SRC
+* Shell Mode
+
+Disables company and projectile mode if enabled (Fixes slow TRAMP) 
+Create a new bashs shell.
+Close buffer when shell exists.
+<leader>ns - new shell
+<leader>y - copy output of last command to kill ring
+ret - append mode
+meta-p: previous command ran
+meta-n: next command ran
+a,A: Continue append text at current position or last line of buffer
+i,I: Continue insert text at current position or last line of buffer
+
+
+#+BEGIN_SRC emacs-lisp
+
+
+(setq explicit-shell-file-name "bash")
+
+
+(defun jt-shell-sentinel (process event)
+  "Called when the shell process is stopped.
+   Closes buffer. Does not write buffer history to file"
+  (when (not (process-live-p process))
+    (let ((buf (process-buffer process)))
+   	(when (buffer-live-p buf)
+	  (with-current-buffer buf
+	    (kill-buffer)
+            )))))
+(add-hook 'shell-mode-hook (lambda () (set-process-sentinel (get-buffer-process (buffer-name) ) #'jt-shell-sentinel)))
+
+
+(add-hook 'shell-mode-hook (lambda () (projectile-mode 0) (company-mode 0)))
+
+(defun shell-cd-current-file ()
+  (interactive)
+  (let ((buffer (generate-new-buffer "*shell*")))
+       (display-buffer buffer)
+       (shell buffer)))
+
+;    ;Display in new frame
+;    ;(display-buffer-pop-up-frame buffer nil)
+;    ;Display in new window at bottom of screen
+;    ;(select-window (split-window-below))
+;    (my-with-patch-function 'display-buffer (buffer &optional ACTION FRAME)
+;      (progn (select-window (split-window-below))
+;             (evil-window-move-very-bottom)
+;             (set-window-buffer nil buffer))
+;      (shell buffer))))
+
+
+
+
+(evil-leader/set-key "ns" 'shell-cd-current-file)
+
+;; Adapted from `comint-delete-output'
+(defun my-comint-copy-output ()
+  "Copy all output from interpreter since last input."
+  (interactive)
+  (let ((proc (get-buffer-process (current-buffer))))
+    (save-excursion
+      (let ((pmark (progn (goto-char (process-mark proc))
+              (forward-line 0)
+              (point-marker))))
+    (kill-new (buffer-substring comint-last-input-end pmark)))))
+   (message "Last command output copied to buffer"))
+
+(evil-leader/set-key-for-mode 'shell-mode "y" 'my-comint-copy-output)
+
+(defun my-place-cursor-for-shell-on-insert-or-append (fn-line fn) 
+  "If cursor can moved down a pooint, jump to end of shell and enter append mode.
+   Otherwise, perform normal insert/append"
+  (interactive) 
+  (condition-case err
+     (progn (evil-next-line)
+	    (end-of-buffer)
+	    (call-interactively fn-line))
+   (error (call-interactively fn))))
+
+(evil-define-key 'normal shell-mode-map
+    "a" (lambda () (interactive) (my-place-cursor-for-shell-on-insert-or-append 'evil-append-line 'evil-append))
+    "A" (lambda () (interactive) (end-of-buffer) (call-interactively 'evil-append-line))
+    (kbd "RET") (lambda () (interactive) (end-of-buffer) (call-interactively 'evil-append-line))
+    "i" (lambda () (interactive) (my-place-cursor-for-shell-on-insert-or-append 'evil-insert-line 'evil-insert))
+    "I" (lambda () (interactive) (end-of-buffer) (call-interactively 'evil-insert-line)))
+
+
+
+
+#+END_SRC
+
+#+RESULTS:
+
+* C# Mode
+#+BEGIN_SRC emacs-lisp
+(use-package csharp-mode :ensure t)
+(add-to-list 'auto-mode-alist '("\\.cs\\'" . csharp-mode))
+#+END_SRC
+* GO mode
+#+BEGIN_SRC emacs-lisp
+(use-package go-mode :ensure t)
+(add-to-list 'auto-mode-alist '("\\.go\\'" . go-mode))
+#+END_SRC
+* Aggressive Indent Mode
+
+Auto indent while typing.
+
+#+BEGIN_SRC emacs-lisp
+(use-package aggressive-indent :ensure t)
+#+END_SRC
+* SMLModeLine
+Show bar in modeline indicator scroll position
+
+#+BEGIN_SRC emacs-lisp
+(use-package sml-modeline :ensure t)
+(sml-modeline-mode)
+#+END_SRC
+
+* YASSnippet 
+
+Powerful template based on expanding word.
+
+#+BEGIN_SRC emacs-lisp
+(use-package yasnippet
+  :ensure t
+  :init
+  (yas-global-mode 1)
+  :config
+  (add-to-list 'yas-snippet-dirs "~/.emacs.d/yasnippets/"))
+
+(define-key yas-minor-mode-map (kbd "<tab>") nil)
+(define-key yas-minor-mode-map (kbd "TAB") nil)
+(define-key yas-minor-mode-map (kbd "SPC") yas-maybe-expand)
+
+
+
+#+END_SRC
+
+* Kill Other Buffers
+#+BEGIN_SRC emacs-lisp
+(defun jt/kill-other-buffers ()
+    "Kill all other buffers."
+    (interactive)
+    
+    ; kill normal buffers
+    (mapc 'kill-buffer 
+          (delq (current-buffer) 
+                (remove-if-not 'buffer-file-name (buffer-list))))
+
+    ; kill dired buffers
+    (mapc (lambda (buffer) 
+	(when (eq 'dired-mode (buffer-local-value 'major-mode buffer)) 
+	    (kill-buffer buffer))) 
+	(buffer-list)))
+#+END_SRC
+
+* Dired
+Update directory listings automatically
+
+#+BEGIN_SRC emacs-lisp
+(add-hook 'dired-mode-hook 'auto-revert-mode)
+#+END_SRC
+
+* Projectile
+#+BEGIN_SRC emacs-lisp
+(use-package projectile :ensure t)
+;; Git projects should be marked as projects in top-down fashion,
+;; so that each git submodule can be a projectile project.
+(setq projectile-project-root-files-bottom-up
+	(delete ".git" projectile-project-root-files-bottom-up))
+(add-to-list 'projectile-project-root-files ".git")
+
+(setq projectile-project-root-files-functions
+	'(projectile-root-local
+	projectile-root-bottom-up
+	projectile-root-top-down
+))
+
+#+END_SRC
+* YAScroll
+Fringe scrollbar. Put on left side.
+#+BEGIN_SRC emacs-lisp
+
+(use-package yascroll :ensure t)
+(setq yascroll:delay-to-hide nil)
+(setq yascroll:scroll-bar 'left-fringe)
+(global-yascroll-bar-mode)
+#+END_SRC
+* Other
+* Don't Search Invisible Text (DISABLED, EVIL BUG CAUSES HANG)
+Bug in evil - https://github.com/emacs-evil/evil/issues/1101
+#+BEGIN_SRC emacs-lisp
+;(setq search-invisible nil)
+#+END_SRC
+
+* CScope
+
+Generate cscope for project if it doesn't already exist
+[ - egrep for text under cursor
+] - jump to definition
+
+#+BEGIN_SRC emacs-lisp
+
+(setq jt-ag-ignore-list '("cscope.out" "cscope.files" "cscope.out.in" "cscope.out.po"))
+(defun jt/cscope-get-db-path () (concat (projectile-project-root) "cscope.out"))
+(defun jt/cscope-get-file-list-path () (concat (projectile-project-root) "cscope.files"))
+
+(defun jt/cscope-proj () 
+  (interactive) 
+  (call-process "find" nil `(:file ,(jt/cscope-get-file-list-path)) nil (projectile-project-root) "-name" "*.go" "-print")
+  (call-process "cscope" nil "what"  nil "-q" "-R" "-b" "-i" (jt/cscope-get-file-list-path) "-f" ( jt/cscope-get-db-path)))
+
+
+
+(evil-leader/set-key "cs" 'jt/cscope-proj)
+
+
+
+(defun my-right-bracket-cscope-fn ()
+  "Finds function"
+  (interactive)
+  (my-with-patch-function 'read-string (&rest arg) sym
+                          (call-interactively 'cscope-find-functions-calling-this-function)))
+			   
+(defun my-right-bracket-cscope-egrep ()
+  "Finds function"
+  (interactive)
+  (my-with-patch-function 'read-string (&rest args) sym
+                          (call-interactively 'cscope-find-egrep-pattern)))
+
+(use-package xcscope :ensure t
+  :config (progn (evil-global-set-key 'normal  "["  'xref-find-definitions)
+
+		 (evil-global-set-key 'normal  "]"  'xref-find-references)))
+
+#+END_SRC
+
+* LSP (DISABLED)
+#+BEGIN_SRC emacs-lisp
+;(use-package lsp-mode :ensure t)
+
+;(lsp-define-stdio-client lsp-go "go" #'(lambda () default-directory)
+;			 '("/Users/justin/proj/tendermint-review/GOPATH/bin/go-langserver" "-mode=stdio" "-gocodecompletion")
+;			 :ignore-regexps
+;			 '("^langserver-go: reading on stdin, writing on stdout$"))
+;
+;(add-hook 'go-mode-hook #'lsp-go-enable)
+
+#+END_SRC
+
+* Templates
+#+BEGIN_SRC emacs-lisp
+(evil-leader/set-key "et" (lambda () (interactive) (split-window-below) (find-file "~/proj/secure-coding-notes/templates.org")))
+#+END_SRC
+
+* Code Review - Manual Stack Trace
+
+#+BEGIN_SRC emacs-lisp
+
+
+;(evil-define-command my-ag (arg) 
+;    (interactive "<a>")
+;    (setq ag-arguments (list "--smart-case" "--stats"))
+;    (my-ag-regex-always arg (projectile-project-root)))
+
+(defun jt/code-review  () 
+    (interactive) 
+    (call-interactively 'org-store-link)
+    (with-current-buffer (get-buffer-create "jt-stack-trace")
+      (end-of-buffer)
+      (org-insert-link)
+)) 
+
+(evil-leader/set-key "ps" 'jt-code-review)
+
+#+END_SRC
+* Ivy
+Incremental Completion for emacs 
+#+BEGIN_SRC emacs-lisp
+(use-package ivy :ensure t)
+(setq ivy-on-del-error-function 'ignore)
+(ivy-mode)
+#+END_SRC
+* Swiper
+#+BEGIN_SRC emacs-lisp
+(use-package swiper :ensure t)
+#+END_SRC
+
+* Highlight TKTK  in text mode (DISABLED)
+
+#+BEGIN_SRC emacs-lisp
+
+;(defun highhlight-tk ()
+;    (font-lock-add-keywords nil '(("TK.+" . 'font-lock-warning-face))
+;				("tk.+" . 'font-lock-warning-face)))
+;(add-hook 'text-mode 'font-lock-mode)
+;(add-hook 'text-mode 'highlight-tk)
+
+
+#+END_SRC
+* Banenr (Disabled)
+#+BEGIN_SRC emacs-lisp
+;Load a banner into scratch buffer...just for fun
+;(setq banner-file-name (concat (file-name-directory (file-truename load-file-name)) "banner.ansi"))
+;(setq initial-scratch-message (with-temp-buffer (insert-file-contents banner-file-name) (buffer-string)))
+;(setq initial-buffer-choice t)
+#+END_SRC
+* Emacs Configs
+Make Default Frame Wide
+Disable menu tool and scroll bars
+
+#+BEGIN_SRC emacs-lisp
+;make default frame wide
+(add-to-list 'default-frame-alist '(width . 160))
+
+;disable menu and tool bar
+(menu-bar-mode 0)
+(tool-bar-mode 0)
+(scroll-bar-mode 0)
+#+END_SRC
+
+* Parinfer - Auto Indentation & Paren Closing For Lisp (AWESOME PACKAGE!!!)
+#+BEGIN_SRC emacs-lisp
+(use-package parinfer :ensure t)
+
+(evil-leader/set-key "s" 'parinfer-toggle-mode)
+
+(add-hook 'clojure-mode-hook #'parinfer-mode)
+(add-hook 'clojurescript-mode-hook #'parinfer-mode)
+
+#+END_SRC
+
+#+RESULTS:
+| parinfer-mode |
+
+* Use spaces for indentation
+#+BEGIN_SRC emacs-lisp
+(setq-default indent-tabs-mode nil)
+#+END_SRC 
+
+* Compile <leader>c
+#+BEGIN_SRC emacs-lisp
+;(evil-leader/set-key "c" 'recompile)
+;(evil-leader/set-key "sc" 'compile)
+#+END_SRC
+
+
+* Org Mode Time Split
+#+BEGIN_SRC emacs-lisp
+(use-package org-clock-split :ensure t)
+(evil-leader/set-key "pt" 'org-clock-split)
+#+END_SRC
+
+* Recentf file
+#+BEGIN_SRC emacs-lisp
+;(recentf-mode)
+;(evil-leader/set-key "rf" 'helm-projectile-recentf)
+#+END_SRC
+
+
+* Highlight 80th column (DISABLED)
+;#+BEGIN_SRC emacs-lisp
+;
+;(setq-default
+; whitespace-line-column 80
+; whitespace-style       '(face lines-tail))
+;
+;#+END_SRC
+
+* Package Lint
+#+BEGIN_SRC emacs-lisp
+(use-package package-lint :ensure t)
+#+END_SRC
+
+
+* Org auto list
+Automatically insert new list item when hitting enter. Twice terminates list.
+
+#+BEGIN_SRC emacs-lisp
+(use-package org-autolist :ensure t)
+(add-hook 'org-mode-hook (lambda () (org-autolist-mode)))
+#+END_SRC
+
+
+* Org  And Markdown Screenshot
+
+#+BEGIN_SRC emacs-lisp
+
+(setq jt-grab-image-command (cond ((file-exists-p "/usr/local/bin/pngpaste") "/usr/local/bin/pngpaste")
+                                  ((file-exists-p "/usr/bin/xclip") "/usr/bin/xclip")))
+
+                                  
+
+(defun org-paste-image ()
+  "Take a screenshot into a time stamped unique-named file in the
+same directory as the org-buffer and insert a link to this file."
+  (interactive)
+  (setq filename
+          (concat (buffer-file-name)
+                  "_"
+                  (read-string "screenshot-name: ") ".png"))
+  (call-process jt-grab-image-command nil nil nil filename)
+  (insert (concat "[[" filename "]]"))
+  (org-display-inline-images)
+  (message filename)
+)
+
+
+(defun markdown-paste-image ()
+  "Take a screenshot into a time stamped unique-named file in the
+same directory as the org-buffer and insert a link to this file."
+  (interactive)
+  (setq filename
+          (concat (buffer-file-name)
+                  "_"
+                  (read-string "screenshot-name: ") ".png"))
+  (call-process jt-grab-image-command nil nil nil filename)
+  (insert (concat "![](" filename ")"))
+  (markdown-display-inline-images)
+  (message filename)
+)
+#+END_SRC
+
+* Adapative org mode links
+
+#+BEGIN_SRC emacs-lisp
+(setq org-link-file-path-type 'adaptive)
+
+#+END_SRC
+
+* Increase number at point
+#+BEGIN_SRC emacs-lisp
+(defun increment-number-at-point ()
+      (interactive)
+      (skip-chars-backward "0-9")
+      (or (looking-at "[0-9]+")
+          (error "No number at point"))
+      (replace-match (number-to-string (1+ (string-to-number (match-string 0))))))
+
+
+(define-key evil-normal-state-map  (kbd "C-A") 'increment-number-at-point)
+      
+#+END_SRC
+
+* Flyspell Highlighting
+Make incorrect words stick out more
+ 
+#+BEGIN_SRC emacs-lisp
+(custom-set-faces
+ '(flyspell-duplicate ((t (:foreground "#ff7070" :weight bold :underline (:color "#ff0000" :style wave)))))
+ '(flyspell-incorrect ((t (:foreground "#ff7070" :weight bold :underline (:color "#ff0000" :style wave))))))
+#+END_SRC
+
+#+RESULTS:
+
+* FIX EMACS BEING SLOW WITH LARGE FILES, DUE TO UNICODE REODERING SCANNING
+Emacs by default scans long lines unicode reodering characetrs (rtl, ltr, etc.) for displaying bi-directional strings.
+#+BEGIN_SRC emacs-lisp
+(setq-default bidi-display-reordering nil)
+#+END_SRC
+
+
+
+* Org - Better Return
+Pressing enter once insert new item..Twice new paragraph
+
+
+#+BEGIN_SRC emacs-lisp
+(require 'org-inlinetask)
+
+(defun scimax/org-return (&optional ignore)
+  "Add new list item, heading or table row with RET.
+A double return on an empty element deletes it.
+Use a prefix arg to get regular RET. "
+  (interactive "P")
+  (if ignore
+      (org-return)
+    (cond
+
+     ((eq 'line-break (car (org-element-context)))
+      (org-return-indent))
+
+     ;; Open links like usual, unless point is at the end of a line.
+     ;; and if at beginning of line, just press enter.
+     ((or (and (eq 'link (car (org-element-context))) (not (eolp)))
+          (bolp))
+      (org-return))
+
+     ;; It doesn't make sense to add headings in inline tasks. Thanks Anders
+     ;; Johansson!
+     ((org-inlinetask-in-task-p)
+      (org-return))
+
+     ;; checkboxes too
+     ((org-at-item-checkbox-p)
+      (org-insert-todo-heading nil))
+
+     ;; lists end with two blank lines, so we need to make sure we are also not
+     ;; at the beginning of a line to avoid a loop where a new entry gets
+     ;; created with only one blank line.
+     ((org-in-item-p)
+      (if (save-excursion (beginning-of-line) (org-element-property :contents-begin (org-element-context)))
+          (org-insert-heading)
+        (beginning-of-line)
+        (delete-region (line-beginning-position) (line-end-position))
+        (org-return)))
+
+     ;; org-heading
+;;     ((org-at-heading-p)
+;;      (if (not (string= "" (org-element-property :title (org-element-context))))
+;;          (progn (org-end-of-meta-data)
+;;                 (org-insert-heading-respect-content)
+;;                 (outline-show-entry))
+;;        (beginning-of-line)
+;;        (setf (buffer-substring
+;;               (line-beginning-position) (line-end-position)) "")))
+
+     ;; tables
+     ((org-at-table-p)
+      (if (-any?
+           (lambda (x) (not (string= "" x)))
+           (nth
+            (- (org-table-current-dline) 1)
+            (org-table-to-lisp)))
+          (org-return)
+        ;; empty row
+        (beginning-of-line)
+        (setf (buffer-substring
+               (line-beginning-position) (line-end-position)) "")
+        (org-return)))
+
+     ;; fall-through case
+     (t
+      (org-return)))))
+
+
+(define-key org-mode-map (kbd "RET") 'scimax/org-return)
+#+END_SRC
+
+* Window Management (Shackle Replacement)
+
+https://www.gnu.org/software/emacs/manual/html_node/elisp/Frame-Layouts-with-Side-Windows.html
+
+#+BEGIN_SRC emacs-lisp
+
+(setq helm-display-function 'pop-to-buffer) ; make helm play nice
+
+(defvar parameters
+       '(window-parameters . ((no-other-window . t)
+                              (no-delete-other-windows . t))))
+
+(setq fit-window-to-buffer-horizontally t)
+(setq window-resize-pixelwise t)
+
+(setq display-buffer-alist
+        `( 
+        ("\\*Buffer List\\*" display-buffer-in-side-window
+         (side . top) (slot . 0) (window-height . fit-window-to-buffer)
+         (preserve-size . (nil . t)) ,parameters)
+
+( ,(rx bos "*helm*" eos)
+           (display-buffer-reuse-window
+            display-buffer-in-side-window)
+           (side            . bottom)
+           (window-height   . 0.4))
+
+
+          (,(rx bos "*cscope*" eos)
+          (display-buffer-reuse-window
+           display-buffer-in-side-window)
+          (side            . bottom)
+          (window-height   . 0.4))
+
+          (,(rx bos "*shell*")
+            (display-buffer-reuse-window
+             display-buffer-in-side-window)
+            (side            . bottom)
+            (slot . 1)
+            (window-height   . 0.4))
+
+
+         ( ,(rx bos "*ag search*" eos)
+           (display-buffer-reuse-window
+            display-buffer-in-side-window)
+           (slot . -1 )
+           (side            . bottom)
+           (window-height   . 0.4))
+
+         ;( ,(rx bos "magit")
+         ;  (display-buffer-reuse-window
+         ;   display-buffer-pop-up-frame)
+         ;  (reusable-frames . 0))
+
+         ;( ,(rx (or ".py" ".c" ".php" ".xml" ".md" ".cpp" ".rb" ".java" ".txt" ".h") eos)
+         ;  (display-buffer-reuse-window
+         ;   display-buffer-in-side-window)
+         ;  (reusable-frames . visible)
+         ;  (side            . top)
+         ;  (window-height   . 0.4))
+
+))
+
+;;; Selects the window that's hopefully at the location returned by
+;;; `windmove-other-window-loc', or screams if there's no window there.
+;(defun jt-windmove-do-window-select (dir &optional arg window)
+;  "Move to the window at direction DIR.
+;DIR, ARG, and WINDOW are handled as by `windmove-other-window-loc'.
+;If no window is at direction DIR, an error is signaled."
+;  (let ((other-window (windmove-find-other-window dir arg window)))
+;    (cond ((null other-window)
+;           ;Following modified by justin.
+;           ;left and right directions should follow different behavior.
+;           (cond ((eq dir 'left) (previous-buffer))
+;                 ((eq dir 'right) (next-buffer))
+;                 ((user-error "huh %s" dir))))
+;          ((and (window-minibuffer-p other-window)
+;                (not (minibuffer-window-active-p other-window)))
+;           (user-error "Minibuffer is inactive"))
+;          (t
+;           (select-window other-window)))))
+;
+;
+;(evil-define-command jt-evil-window-left (count)
+;  "Move the cursor to new COUNT-th window left of the current one."
+;  :repeat nil
+;  (interactive "p")
+;  (my-with-patch-function 'windmove-do-window-select  (dir &optional arg window) (jt-windmove-do-window-select dir arg window)
+;    (dotimes (i count)
+;
+;      (windmove-left))))
+;      
+;
+;(evil-define-command jt-evil-window-right (count)
+;  "Move the cursor to new COUNT-th window right of the current one."
+;  :repeat nil
+;  (interactive "p")
+;  (my-with-patch-function 'windmove-do-window-select  (dir &optional arg window) (jt-windmove-do-window-select dir arg window)
+;    (dotimes (i count)
+;
+;      (windmove-right))))
+;          
+;(define-key evil-motion-state-map  (kbd "<up>") 'evil-window-up)
+;(define-key evil-motion-state-map  (kbd "<right>") 'jt-evil-window-right)
+;(define-key evil-motion-state-map  (kbd "<left>") 'jt-evil-window-left)
+;(define-key evil-motion-state-map  (kbd "<down>") 'evil-window-down)
+
+#+END_SRC
+
+#+RESULTS:
+| \*Buffer List\*   | display-buffer-in-side-window                               | (side . top)          | (slot . 0)            | (window-height . fit-window-to-buffer) | (preserve-size nil . t) | (window-parameters (no-other-window . t) (no-delete-other-windows . t)) |
+| \`\*helm\*\'      | (display-buffer-reuse-window display-buffer-in-side-window) | (side . bottom)       | (window-height . 0.4) |                                        |                         |                                                                         |
+| \`\*cscope\*\'    | (display-buffer-reuse-window display-buffer-in-side-window) | (side . bottom)       | (window-height . 0.4) |                                        |                         |                                                                         |
+| \`\*shell\*       | (display-buffer-reuse-window display-buffer-in-side-window) | (side . bottom)       | (slot . 1)            | (window-height . 0.4)                  |                         |                                                                         |
+| \`\*ag search\*\' | (display-buffer-reuse-window display-buffer-in-side-window) | (slot . -1)           | (side . bottom)       | (window-height . 0.4)                  |                         |                                                                         |
+| \`magit           | (display-buffer-reuse-window display-buffer-pop-up-frame)   | (reusable-frames . 0) |                       |                                        |                         |                                                                         |
+
+
+
+* Jedi (Python Auto Completion)
+
+#+BEGIN_SRC emacs-lisp
+(use-package company-jedi :ensure t)
+
+(defun my/python-mode-hook ()
+  (add-to-list 'company-backends 'company-jedi)
+  (jedi-mode))
+
+(add-hook 'python-mode-hook 'my/python-mode-hook)
+
+#+END_SRC
+
+* Rerun z macro
+#+BEGIN_SRC emacs-lisp
+(define-key evil-normal-state-map " z" (kbd "@z"))
+#+END_SRC
+
+* Emacs server
+#+BEGIN_SRC emacs-lisp
+;(setq server-socket-dir "~/.emacs-server")
+(server-start)
+#+END_SRC
+
+
+* Emacs Pass Simple
+#+BEGIN_SRC emacs-lisp
+(use-package emacs-pass-simple :quelpa (emacs-pass-simple :fetcher github :repo "justintaft/emacs-pass-simple" :files ("*.el" "Emacs Pass Simple.app")))
+#+END_SRC
+
+* Mark filepath in ORG list as completed 
+
+When cursor is on a list of files, such as :
+
+- [ ] /tmp/somepath1
+- [ ] /tmp/somepath2 
+
+Running jt-file-view-marker will mark the file as viewed, and open it up in a buffer. Invoking the funtion again will mark the next file as viewed, and will open it up in a buffer. Paths which are directories are marked as completed and skipped.
+
+#+BEGIN_SRC emacs-lisp
+(setq jt-file-view-marker nil)
+
+(defun jt-view-next-file-in-list ()
+
+   (interactive)
+
+   ;Switch to note buffer, if not already set
+   (unless (string-match-p (regexp-quote "notes.org") (buffer-name))
+       (toggle-notes-buffer))
+   
+   ;If file list marker exists, jump to it
+   (if jt-file-view-marker
+     (goto-char (marker-position jt-file-view-marker))
+     (setq jt-file-view-marker (make-marker)))
+   
+   (while (file-directory-p (ffap-guess-file-name-at-point))
+     (org-ctrl-c-ctrl-c)
+     (evil-next-line))
+
+   ;Create next file marker
+   (evil-next-line) 
+   (set-marker jt-file-view-marker (point))
+  
+   ;move to previous line and fiew file 
+   (evil-previous-line)
+   (org-ctrl-c-ctrl-c)
+   (find-file (ffap-guess-file-name-at-point))
+)
+
+
+
+#+END_SRC
+* Highlight indentation
+#+BEGIN_SRC emacs-lisp
+(use-package highlight-indent-guides :ensure t)
+(add-hook 'prog-mode-hook 'highlight-indent-guides-mode)
+#+END_SRC
+
+* Variable Pitch of Fonts
+
+(set-face-attribute 'default nil :family "Iosevka" :height 130)
+
+(set-face-attribute 'fixed-pitch nil :family "Iosevka")
+    
+(set-face-attribute 'variable-pitch nil :family "Baskerville")
+
+
+
+* Flycheck
+#+BEGIN_SRC emacs-lisp
+(use-package flycheck :ensure t)
+#+END_SRC
+
+#+RESULTS:
+: t
