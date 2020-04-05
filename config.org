@@ -79,27 +79,8 @@ Speeds up searches and whantot.
     ; https://github.com/cofi/evil-leader/issues/10
     (use-package evil-leader
       :ensure t
-      :init (global-evil-leader-mode)
-      :config
-
-
+      :init (global-evil-leader-mode))
       
-
-      (progn
-	(evil-leader/set-leader "-")
-        (setq evil-leader/in-all-states t)
-        ;; keyboard shortcuts
-        (evil-leader/set-key
-          "k" 'kill-window
-          "w" 'save-buffer 
-	  "-" 'evil-ex
-	  "0" 'eval-region
-	  "o" 'eval-buffer
-	  "nt" (lambda () (interactive) (multi-term))
-	  "y" 'linenumber-name-file-number-lines-and-copy-to-kill-buffer
-          "b" 'buffer-menu
-          ))
-      )
 
     ;;; boot evil by default
   :config
@@ -108,12 +89,6 @@ Speeds up searches and whantot.
    ; (define-key evil-ex-map "e " 'ido-find-file)
    ; (define-key evil-ex-map "b " 'ido-switch-buffer)
 
-    (define-key evil-normal-state-map  (kbd "S-<left>") 'paraedit-background-slurp-sexp)
-    (define-key evil-normal-state-map  (kbd "M-<right>") 'paredit-forward-slurp-sexp)
-    (define-key evil-motion-state-map  (kbd "<up>") 'evil-window-up)
-    (define-key evil-motion-state-map  (kbd "<right>") 'evil-window-right)
-    (define-key evil-motion-state-map  (kbd "<left>") 'evil-window-left)
-    (define-key evil-motion-state-map  (kbd "<down>") 'evil-window-down)
 
 
     ;whenver changing windows, resize the window with golden ratio
@@ -127,16 +102,6 @@ Speeds up searches and whantot.
     
     ;enable caching for projectile file listing
     (setq projectile-enable-caching t)
-
-    ;; jj escapes to normal mode
-    (key-chord-define evil-insert-state-map  "jk" 'evil-normal-state)
-
-    (key-chord-define evil-insert-state-map  "jf" 'paredit-open-round)
-
-    (key-chord-define evil-normal-state-map  "=w" 'paredit-wrap-round)
-    (key-chord-define evil-normal-state-map  "=s" 'paredit-splice-sexp-killing-backward)
-
-    (key-chord-define evil-normal-state-map  "==" 'cider-test-run-ns-tests)
 
 
     (setq
@@ -1487,3 +1452,47 @@ Running jt-file-view-marker will mark the file as viewed, and open it up in a bu
 
 #+RESULTS:
 : t
+
+* Key bindings
+#+BEGIN_SRC emacs-lisp
+
+
+;Evil leader keys
+(progn
+(evil-leader/set-leader "-")
+(setq evil-leader/in-all-states t)
+;; keyboard shortcuts
+
+(evil-leader/set-key
+    "k" 'kill-window
+    "w" 'save-buffer 
+    "-" 'evil-ex
+    "0" 'eval-region
+    "o" 'eval-buffer
+    "nt" (lambda () (interactive) (multi-term))
+    "y" 'linenumber-name-file-number-lines-and-copy-to-kill-buffer
+    "b" 'buffer-menu))
+
+    
+;arrow keys mode windows
+(define-key evil-motion-state-map  (kbd "<up>") 'evil-window-up)
+(define-key evil-motion-state-map  (kbd "<right>") 'evil-window-right)
+(define-key evil-motion-state-map  (kbd "<left>") 'evil-window-left)
+(define-key evil-motion-state-map  (kbd "<down>") 'evil-window-down)
+
+;paredit keys
+(define-key evil-normal-state-map  (kbd "S-<left>") 'paraedit-background-slurp-sexp)
+(define-key evil-normal-state-map  (kbd "M-<right>") 'paredit-forward-slurp-sexp)
+(key-chord-define evil-normal-state-map  "=w" 'paredit-wrap-round)
+(key-chord-define evil-normal-state-map  "=s" 'paredit-splice-sexp-killing-backward)
+(key-chord-define evil-insert-state-map  "jf" 'paredit-open-round)
+
+
+;; jk escapes to normal mode
+(key-chord-define evil-insert-state-map  "jk" 'evil-normal-state)
+
+
+(key-chord-define evil-normal-state-map  "==" 'cider-test-run-ns-tests)
+
+
+#+END_SRC
