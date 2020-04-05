@@ -115,15 +115,6 @@ Speeds up searches and whantot.
     ;; unbind enter key
     (define-key evil-motion-state-map [?\r] nil)
 
-    ;; esc should always quit: http://stackoverflow.com/a/10166400/61435
-    (define-key evil-normal-state-map [escape] 'keyboard-quit)
-    (define-key evil-visual-state-map [escape] 'keyboard-quit)
-    (define-key minibuffer-local-map [escape] 'abort-recursive-edit)
-    (define-key minibuffer-local-ns-map [escape] 'abort-recursive-edit)
-    (define-key minibuffer-local-completion-map [escape] 'abort-recursive-edit)
-    (define-key minibuffer-local-must-match-map [escape] 'abort-recursive-edit)
-    (define-key minibuffer-local-isearch-map [escape] 'abort-recursive-edit)
-
     ;; modes to map to different default states
     ;(dolist (mode-map '((comint-mode . emacs)
     ;                    (term-mode . emacs)
@@ -148,8 +139,6 @@ Speeds up searches and whantot.
 #+END_SRC
    
 * Magit - Git Integration
-
-** Package Download
 #+BEGIN_SRC emacs-lisp
   
 (use-package magit
@@ -158,12 +147,6 @@ Speeds up searches and whantot.
   
 #+END_SRC
   
-** Key Bindings
-#+BEGIN_SRC emacs-lisp
-(evil-leader/set-key
-    "m" 'magit-status
-)
-#+END_SRC   
 * paredit  
 #+BEGIN_SRC emacs-lisp
 (use-package paredit :ensure t)
@@ -207,7 +190,6 @@ Speeds up searches and whantot.
 #+BEGIN_SRC emacs-lisp
 (use-package company
     :ensure t 
-    :bind (("C-c /". company-complete))
     :config
     (progn
       (global-company-mode)
@@ -220,7 +202,6 @@ Speeds up searches and whantot.
 #+END_SRC
 
 * Cider - Clojure nrepl integration
-** init  
 #+BEGIN_SRC emacs-lisp
 
 ;;Cider begin (Clojure)
@@ -249,14 +230,6 @@ Speeds up searches and whantot.
 )
 ;;Cider end (Cloure)
 
-
-#+END_SRC
-** key bindings
-#+BEGIN_SRC emacs-lisp
-(evil-leader/set-key
-    "=" (lambda () (interactive) (save-buffer) (cider-eval-buffer))
-    "eb" (lambda () (interactive) (save-buffer) (cider-eval-buffer))
-    "er" (lambda () (interactive) (save-buffer) (cider-eval-defun-at-point)))
 
 #+END_SRC
 * Rainbow Delimiters
@@ -1458,7 +1431,6 @@ Running jt-file-view-marker will mark the file as viewed, and open it up in a bu
 
 
 ;Evil leader keys
-(progn
 (evil-leader/set-leader "-")
 (setq evil-leader/in-all-states t)
 ;; keyboard shortcuts
@@ -1471,7 +1443,7 @@ Running jt-file-view-marker will mark the file as viewed, and open it up in a bu
     "o" 'eval-buffer
     "nt" (lambda () (interactive) (multi-term))
     "y" 'linenumber-name-file-number-lines-and-copy-to-kill-buffer
-    "b" 'buffer-menu))
+    "b" 'buffer-menu)
 
     
 ;arrow keys mode windows
@@ -1492,7 +1464,31 @@ Running jt-file-view-marker will mark the file as viewed, and open it up in a bu
 (key-chord-define evil-insert-state-map  "jk" 'evil-normal-state)
 
 
-(key-chord-define evil-normal-state-map  "==" 'cider-test-run-ns-tests)
 
+;; esc should always quit: http://stackoverflow.com/a/10166400/61435
+(define-key evil-normal-state-map [escape] 'keyboard-quit)
+(define-key evil-visual-state-map [escape] 'keyboard-quit)
+(define-key minibuffer-local-map [escape] 'abort-recursive-edit)
+(define-key minibuffer-local-ns-map [escape] 'abort-recursive-edit)
+(define-key minibuffer-local-completion-map [escape] 'abort-recursive-edit)
+(define-key minibuffer-local-must-match-map [escape] 'abort-recursive-edit)
+(define-key minibuffer-local-isearch-map [escape] 'abort-recursive-edit)
+
+
+;Magit
+(evil-leader/set-key "m" 'magit-status)
+
+
+
+;Cider
+(key-chord-define evil-normal-state-map  "==" 'cider-test-run-ns-tests)
+(evil-leader/set-key
+    "=" (lambda () (interactive) (save-buffer) (cider-eval-buffer))
+    "eb" (lambda () (interactive) (save-buffer) (cider-eval-buffer))
+    "er" (lambda () (interactive) (save-buffer) (cider-eval-defun-at-point)))
+
+
+;Company
+;:bind (("C-c /". company-complete))
 
 #+END_SRC
