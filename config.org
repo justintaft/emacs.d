@@ -321,53 +321,6 @@ Display buffer at bottom of the current."
 #+RESULTS:
 : my-ag-split-and-display
   
-** Custom Key Bindings
-   
-Shift-return opens new window
-[] next error
-{} next file
-
-#+BEGIN_SRC emacs-lisp
-
-(evil-define-key 'motion ag-mode-map (kbd "S-<return>") 'my-ag-split-and-display)
-
-(define-key ag-mode-map " " nil)
-
-
-(defun evil-collection-ag-setup ()
-  "Set up `evil' bindings for `ag'."
-  (evil-define-key '(motion) ag-mode-map
-    "k" 'evil-previous-line
-    "h" 'evil-backward-char
-
-    ;; refresh
-    "gr" 'recompile
-
-    ;; navigation
-
-    "gg" 'evil-goto-first-line
-    (kbd "G") 'evil-goto-line
-    "gj" 'compilation-next-error
-    "gk" 'compilation-previous-error
-    (kbd "C-j") 'compilation-next-error
-    (kbd "C-k") 'compilation-previous-error
-    "]" 'compilation-next-error
-    "[" 'compilation-previous-error
-
-    "}" 'compilation-next-file
-    "{" 'compilation-previous-file
-    "n" 'evil-search-next
-    (kbd "<DEL>") 'maybe-split-then-find-file
-
-    )
-
-
-  ;; `ag' is best set in 'normal state because its buffer can be edited.
-  ;; https://github.com/mhayashi1120/Emacs-wgrep
-  (evil-set-initial-state 'ag-mode 'motion))
-  (evil-collection-ag-setup)
-
-#+END_SRC
 
 * Markdown 
 Requires markdown procesor: brew install markdown.
@@ -469,9 +422,6 @@ Disable fringes.
 
 (setq langtool-enabled-rules '("And"))
 (setq langtool-disabled-rules '("WHITESPACE_RULE" "EN_QUOTES" "MORFOLOGIK_RULE_EN_GB" "COMMA_PARENTHESIS_WHITESPACE" "EN_GB_SIMPLE_REPLACE"))
-(evil-leader/set-key "lc" 'langtool-check)
-(define-key evil-normal-state-map "  " (lambda () (interactive) (save-excursion (mark-paragraph) (langtool-check))))
-(define-key evil-normal-state-map " s" (lambda () (interactive) (flyspell-buffer) (langtool-check)))
 #+END_SRC
 * Zoom in all buffers
 META--: zoom out
@@ -514,12 +464,6 @@ Don't split headers into multiple lines
  ;(evil-leader/set-key-for-mode 'org-mode
  ; "r" 'org-table-iterate)
 
- (evil-leader/set-key-for-mode 'org-mode
-    "ci" 'org-clock-in)
-
- (evil-leader/set-key-for-mode 'org-mode
-    "co" (lambda () (interactive) (org-clock-out) (org-clock-display)))
-
 (defun jt/org-cycle-current-headline ()
   (interactive)
   (outline-previous-heading)
@@ -536,7 +480,6 @@ Don't split headers into multiple lines
   (interactive) 
   (let ((org-cycle-emulate-tab nil))
      (org-cycle)))
-(evil-define-key '(normal visual) org-mode-map (kbd "<tab>") 'jt/org-cycle-always) 
 
 
     
@@ -1022,7 +965,6 @@ Disable menu tool and scroll bars
 * Org Mode Time Split
 #+BEGIN_SRC emacs-lisp
 (use-package org-clock-split :ensure t)
-(evil-leader/set-key "pt" 'org-clock-split)
 #+END_SRC
 
 * Recentf file
@@ -1490,5 +1432,67 @@ Running jt-file-view-marker will mark the file as viewed, and open it up in a bu
 
 ;Company
 ;:bind (("C-c /". company-complete))
+
+
+;Org click split
+(evil-leader/set-key "pt" 'org-clock-split)
+
+;langtool spelling and grammar keybindings
+(evil-leader/set-key "lc" 'langtool-check)
+(define-key evil-normal-state-map "  " (lambda () (interactive) (save-excursion (mark-paragraph) (langtool-check))))
+(define-key evil-normal-state-map " s" (lambda () (interactive) (flyspell-buffer) (langtool-check)))
+
+
+
+;Org mode bindings for clicking in and out
+(evil-leader/set-key-for-mode 'org-mode "ci" 'org-clock-in)
+(evil-leader/set-key-for-mode 'org-mode "co" (lambda () (interactive) (org-clock-out) (org-clock-display)))
+
+;Org mode bindings for cycling headers
+(evil-define-key '(normal visual) org-mode-map (kbd "<tab>") 'jt/org-cycle-always) 
+
+
+
+
+;ag keybbindings   
+;Shift-return opens new window
+;[] next error
+;{} next file
+
+
+(evil-define-key 'motion ag-mode-map (kbd "S-<return>") 'my-ag-split-and-display)
+(define-key ag-mode-map " " nil)
+
+;evil bindings for ag mode
+(evil-define-key '(motion) ag-mode-map
+  "k" 'evil-previous-line
+  "h" 'evil-backward-char
+
+  ;; refresh
+  "gr" 'recompile
+
+  ;; navigation
+
+  "gg" 'evil-goto-first-line
+  (kbd "G") 'evil-goto-line
+  "gj" 'compilation-next-error
+  "gk" 'compilation-previous-error
+  (kbd "C-j") 'compilation-next-error
+  (kbd "C-k") 'compilation-previous-error
+  "]" 'compilation-next-error
+  "[" 'compilation-previous-error
+
+  "}" 'compilation-next-file
+  "{" 'compilation-previous-file
+  "n" 'evil-search-next
+  (kbd "<DEL>") 'maybe-split-then-find-file)
+
+
+;; `ag' is best set in 'normal state because its buffer can be edited.
+;; https://github.com/mhayashi1120/Emacs-wgrep
+(evil-set-initial-state 'ag-mode 'motion)
+
+#+END_SRC
+
 
 #+END_SRC
