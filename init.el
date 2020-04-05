@@ -1,46 +1,19 @@
 ;Ensure certificates are checked
-;AUTO CODE CHUNK BELOW
-; ENSURE THE BELOW COMMAND IS RAN!
-; pip3 install -U --user certifi
-(let ((trustfile
-       (replace-regexp-in-string
-        "\\\\" "/"
-        (replace-regexp-in-string
-         "\n" ""
-         (shell-command-to-string "python3 -m certifi")))))
-  (setf tls-program
-        (list
-         (format "gnutls-cli%s --x509cafile %s -p %%p %%h"
-                 (if (eq window-system 'w32) ".exe" "") trustfile)))
-  (setf tls-checktrust t)
-  (setf gnutls-verify-error t)
-  (setf gnutls-trustfiles (list trustfile)))
+(setq network-security-level 'high)
 
-;Throw error if SSL configuration is not working correctly
-;(let ((bad-hosts
-;       (loop for bad
-;             in `("https://wrong.host.badssl.com/"
-;                  "https://self-signed.badssl.com/")
-;             if (condition-case e
-;                    (url-retrieve
-;                     bad (lambda (retrieved) t))
-;                  (error nil))
-;             collect bad)))
-;  (if bad-hosts
-;      (print (format "tls misconfigured; retrieved %s ok"
-;                     bad-hosts))
-;    (url-retrieve "https://badssl.com"
-;                  (lambda (retrieved) t))))
+
+;Check emacs version to prevent unsafe HTTPS connections being made,
+;due to default network security manager settings.
+(unless (>= emacs-major-version ) 
+    (error "Old version of emacs detected. Network security manager isn't implemented. Unsafe to download packages over HTTPS."))
+
 
 (require 'package)
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/"))
+(add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/"))
 (package-initialize)
 
 (setq package-enable-at-startup nil)
-(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/"))
-(add-to-list 'package-archives '("marmalade" . "https://marmalade-repo.org/packages/"))
-(add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/"))
-(package-initialize)
 
 ;update packages
 (unless (package-installed-p 'use-package)
